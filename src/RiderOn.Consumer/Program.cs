@@ -4,7 +4,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using Confluent.Kafka;
 using MassTransit;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
 using RideOn.Components;
@@ -12,6 +11,8 @@ using RideOn.Contracts;
 using Serilog;
 using Serilog.Events;
 using Serilog.Extensions.Logging;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 
 namespace RideOn.Consumer
 {
@@ -25,57 +26,43 @@ namespace RideOn.Consumer
                 .Enrich.FromLogContext()
                 .WriteTo.Console()
                 .CreateLogger();
-            var services = new ServiceCollection();
 
-            services.TryAddSingleton<ILoggerFactory>(new SerilogLoggerFactory());
-            services.TryAddSingleton(typeof(ILogger<>), typeof(Logger<>));
 
-            services.AddMassTransit(x =>
-            {
-                x.UsingRabbitMq((context, cfg) => cfg.ConfigureEndpoints(context));
-
-                x.AddRider(rider =>
+            await Host.CreateDefaultBuilder(args)
+                .UseSerilog()
+                .ConfigureServices(services =>
                 {
-                    rider.AddConsumer<PatronVisitedConsumer>();
+                    services.TryAddSingleton<ILoggerFactory>(new SerilogLoggerFactory());
+                    services.TryAddSingleton(typeof(ILogger<>), typeof(Logger<>));
 
-                    rider.UsingKafka((context, k) =>
+                    services.AddMassTransit(x =>
                     {
-                        k.Host("localhost:9092");
-
-                        k.TopicEndpoint<PatronVisited>(nameof(PatronVisited), $"{nameof(RideOn)}-1", c =>
+                        x.UsingRabbitMq((context, cfg) =>
                         {
-                            c.AutoOffsetReset = AutoOffsetReset.Earliest;
-                            c.CreateIfMissing(t => t.NumPartitions = 1);
-                            c.ConfigureConsumer<PatronVisitedConsumer>(context);
+                            cfg.Host("rabbit");
+                            cfg.ConfigureEndpoints(context);
+                        });
+
+                        x.AddRider(rider =>
+                        {
+                            rider.AddConsumer<PatronVisitedConsumer>();
+
+                            rider.UsingKafka((context, k) =>
+                            {
+                                k.Host("broker:29092");
+
+                                k.TopicEndpoint<PatronVisited>(nameof(PatronVisited), $"{nameof(RideOn)}-1", c =>
+                                {
+                                    c.AutoOffsetReset = AutoOffsetReset.Earliest;
+                                    c.CreateIfMissing(t => t.NumPartitions = 1);
+                                    c.ConfigureConsumer<PatronVisitedConsumer>(context);
+                                });
+                            });
                         });
                     });
-                });
-            });
-
-            await using var provider = services.BuildServiceProvider(true);
-
-            var logger = provider.GetRequiredService<ILogger<Program>>();
-
-            var busControl = provider.GetRequiredService<IBusControl>();
-
-            var startTokenSource = new CancellationTokenSource(TimeSpan.FromSeconds(30)).Token;
-
-            await busControl.StartAsync(startTokenSource);
-            try
-            {
-                while (true)
-                {
-                    Console.Write("Consumer-1 Started, anykey to quit: ");
-                    var line = Console.ReadLine();
-
-                    if (!string.IsNullOrWhiteSpace(line))
-                        break;
-                }
-            }
-            finally
-            {
-                await busControl.StopAsync(TimeSpan.FromSeconds(30));
-            }
+                })
+                .Build()
+                .RunAsync();
         }
     }
 }

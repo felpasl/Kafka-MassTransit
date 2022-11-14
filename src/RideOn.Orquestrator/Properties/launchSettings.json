@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "RideOn.Orquestrator": {
+      "commandName": "Project"
+    },
+    "Docker": {
+      "commandName": "Docker"
+    }
+  }
+}

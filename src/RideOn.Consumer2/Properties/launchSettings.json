@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "RideOn.Consumer2": {
+      "commandName": "Project"
+    },
+    "Docker": {
+      "commandName": "Docker"
+    }
+  }
+}

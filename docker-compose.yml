@@ -1,6 +1,34 @@
----
-version: '2'
+version: '3.4'
+
 services:
+  rideon.consumer:
+    image: ${DOCKER_REGISTRY-}rideonconsumer
+    depends_on:
+      - broker
+      - rabbit
+    build:
+      context: .
+      dockerfile: src/RiderOn.Consumer/Dockerfile
+      
+  rideon.consumer2:
+    image: ${DOCKER_REGISTRY-}rideonconsumer2
+    depends_on:
+      - broker
+      - rabbit
+    build:
+      context: .
+      dockerfile: src/RideOn.Consumer2/Dockerfile
+
+
+  rideon.orquestrator:
+    image: ${DOCKER_REGISTRY-}rideonorquestrator
+    depends_on:
+      - broker
+      - rabbit
+    build:
+      context: .
+      dockerfile: src/RideOn.Orquestrator/Dockerfile
+
   zookeeper:
     image: confluentinc/cp-zookeeper:7.0.1
     hostname: zookeeper
@@ -9,7 +37,7 @@ services:
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
       ZOOKEEPER_TICK_TIME: 2000
-
+      
   broker:
     image: confluentinc/cp-server:7.0.1
     hostname: broker

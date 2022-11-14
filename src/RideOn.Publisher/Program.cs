@@ -32,8 +32,6 @@ namespace RideOn
 
             services.AddMassTransit(x =>
             {
-                x.AddConsumer<PatronVisitedConsumer>();
-
                 x.UsingRabbitMq((context, cfg) => cfg.ConfigureEndpoints(context));
 
                 x.AddRider(rider =>
@@ -44,36 +42,10 @@ namespace RideOn
                     rider.AddProducer<PatronEntered>(nameof(PatronEntered));
                     rider.AddProducer<PatronLeft>(nameof(PatronLeft));
 
-                    // duplicative, since it's already published to RabbitMQ, but showing how to also
-                    // produce an event on Kafka from a state machine
-                    rider.AddProducer<PatronVisited>(nameof(PatronVisited));
-
-                    rider.AddConsumer<PatronVisitedConsumer>();
 
                     rider.UsingKafka((context, k) =>
                     {
-                        k.Host("localhost:9092");
-                        
-                        k.TopicEndpoint<Null, PatronEntered>(nameof(PatronEntered), nameof(RideOn), c =>
-                        {
-                            c.AutoOffsetReset = AutoOffsetReset.Earliest;
-                            c.CreateIfMissing(t => t.NumPartitions = 1);
-                            c.ConfigureSaga<PatronState>(context);
-                        });
-
-                        k.TopicEndpoint<Null, PatronLeft>(nameof(PatronLeft), nameof(RideOn), c =>
-                        {
-                            c.AutoOffsetReset = AutoOffsetReset.Earliest;
-                            c.CreateIfMissing(t => t.NumPartitions = 1);
-                            c.ConfigureSaga<PatronState>(context);
-                        });
-
-                        k.TopicEndpoint<PatronVisited>(nameof(PatronVisited), nameof(RideOn), c =>
-                        {
-                            c.AutoOffsetReset = AutoOffsetReset.Earliest;
-                            c.CreateIfMissing(t => t.NumPartitions = 1);
-                            c.ConfigureConsumer<PatronVisitedConsumer>(context);
-                        });
+                        k.Host("localhost:9092");                        
                     });
                 });
             });

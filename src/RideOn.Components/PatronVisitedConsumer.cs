@@ -17,7 +17,7 @@ namespace RideOn.Components
 
         public Task Consume(ConsumeContext<PatronVisited> context)
         {
-            _logger.LogInformation("Patron Visited: {PatronId} {Entered} {Left} {Duration}", context.Message.PatronId,
+            _logger.LogInformation("Consume Patron Visited: ID:{PatronId} Entered:[{Entered}] Left:[{Left}] Duration:[{Duration}]", context.Message.PatronId,
                 context.Message.Entered, context.Message.Left, context.Message.Left - context.Message.Entered);
 
             return Task.CompletedTask;

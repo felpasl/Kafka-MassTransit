@@ -48,10 +48,12 @@ namespace RideOn
                     // produce an event on Kafka from a state machine
                     rider.AddProducer<PatronVisited>(nameof(PatronVisited));
 
+                    rider.AddConsumer<PatronVisitedConsumer>();
+
                     rider.UsingKafka((context, k) =>
                     {
                         k.Host("localhost:9092");
-
+                        
                         k.TopicEndpoint<Null, PatronEntered>(nameof(PatronEntered), nameof(RideOn), c =>
                         {
                             c.AutoOffsetReset = AutoOffsetReset.Earliest;
@@ -64,6 +66,13 @@ namespace RideOn
                             c.AutoOffsetReset = AutoOffsetReset.Earliest;
                             c.CreateIfMissing(t => t.NumPartitions = 1);
                             c.ConfigureSaga<PatronState>(context);
+                        });
+
+                        k.TopicEndpoint<PatronVisited>(nameof(PatronVisited), nameof(RideOn), c =>
+                        {
+                            c.AutoOffsetReset = AutoOffsetReset.Earliest;
+                            c.CreateIfMissing(t => t.NumPartitions = 1);
+                            c.ConfigureConsumer<PatronVisitedConsumer>(context);
                         });
                     });
                 });
@@ -132,16 +141,21 @@ namespace RideOn
 
                         for (var i = 0; i < limit; i++)
                         {
+                            var enteredTimestamp = DateTime.UtcNow;
+                            var leftTimestamp = DateTime.UtcNow + TimeSpan.FromMinutes(random.Next(60));
+
+                            logger.LogInformation($"publishing kafka enteredTask Id:{patronIds[i]} Timestamp:[{enteredTimestamp}]");
                             var enteredTask = enteredProducer.Produce(new
                             {
                                 PatronId = patronIds[i],
-                                Timestamp = DateTime.UtcNow
+                                Timestamp = enteredTimestamp
                             });
 
+                            logger.LogInformation($"publishing kafka leftTask Id:{patronIds[i]} Timestamp:[{leftTimestamp}]");
                             var leftTask = leftProducer.Produce(new
                             {
                                 PatronId = patronIds[i],
-                                Timestamp = DateTime.UtcNow + TimeSpan.FromMinutes(random.Next(60))
+                                Timestamp = leftTimestamp
                             });
 
                             tasks.Add(enteredTask);
